@@ -1,0 +1,13 @@
+streamlit
+requests
+PyPDF2
+langchain
+langchain-openai
+faiss-cpu
+crewai
+pydantic
+openai
+fastapi
+uvicorn
+python-multipart
+python-dotenv
