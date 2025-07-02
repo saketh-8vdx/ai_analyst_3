@@ -1,3 +1,6 @@
+__import__("pysqlite3")          # registers the modern _sqlite3 C-extension
+import sys
+sys.modules["sqlite3"] = sys.modules.pop("pysqlite3")
 import os, faiss
 from typing import List, Dict, Any, Type
 from pydantic import BaseModel, Field
