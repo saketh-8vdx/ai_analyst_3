@@ -11,3 +11,4 @@ fastapi
 uvicorn
 python-multipart
 python-dotenv
+pysqlite3-binary
