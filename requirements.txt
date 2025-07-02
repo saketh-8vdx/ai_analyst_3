@@ -13,3 +13,8 @@ python-multipart
 python-dotenv
 pysqlite3-binary>=0.5.2 
 langchain-community
+fitz
+frontend
+tools
+llama-parse
+pymupdf

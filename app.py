@@ -9,6 +9,9 @@ from ai_analyst import read_pdf, create_chunks, store_embeddings_excel, generate
 from langchain.callbacks.base import BaseCallbackHandler
 from crewai import LLM
 
+from processing_files import convert_pdf_to_text_new, get_chunked_documents_pipeline
+
+
 # Configure the page
 st.set_page_config(
     page_title="PDF Document Analyzer",
@@ -206,15 +209,20 @@ def process_pdf_file(uploaded_file) -> Dict[str, Any]:
         
         # Read PDF text
         with st.spinner(f"Reading PDF: {uploaded_file.name}"):
-            text = read_pdf(tmp_path)
+            page_texts = convert_pdf_to_text_new(tmp_path)
+            print(page_texts)
+            # text = read_pdf(tmp_path)
         
-        if not text.strip():
-            st.error(f"No text content found in {uploaded_file.name}")
-            return None
+        # if not text.strip():
+        #     st.error(f"No text content found in {uploaded_file.name}")
+        #     return None
         
         # Create chunks
         with st.spinner(f"Creating chunks for: {uploaded_file.name}"):
-            chunks = create_chunks(text, uploaded_file.name)
+            # chunks = create_chunks(text, uploaded_file.name)
+            chunks = get_chunked_documents_pipeline(page_texts,tmp_path)
+            print(chunks)
+            print(len(chunks))
         
         if not chunks:
             st.error(f"No valid chunks created for {uploaded_file.name}")
