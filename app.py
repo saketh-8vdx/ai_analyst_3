@@ -5,7 +5,6 @@ import tempfile
 import os
 from typing import List, Dict, Any
 import time
-import concurrent.futures
 from ai_analyst import read_pdf, create_chunks, store_embeddings_excel, generate_description
 from langchain.callbacks.base import BaseCallbackHandler
 from crewai import LLM
@@ -209,24 +208,35 @@ def process_pdf_file(uploaded_file) -> Dict[str, Any]:
             tmp_path = tmp_file.name
         
         # Read PDF text
-        page_texts = convert_pdf_to_text_new(tmp_path)
-        print(f"Processing {uploaded_file.name}: {len(page_texts)} pages extracted")
+        with st.spinner(f"Reading PDF: {uploaded_file.name}"):
+            page_texts = convert_pdf_to_text_new(tmp_path)
+            print(page_texts)
+            # text = read_pdf(tmp_path)
+        
+        # if not text.strip():
+        #     st.error(f"No text content found in {uploaded_file.name}")
+        #     return None
         
         # Create chunks
-        chunks = get_chunked_documents_pipeline(page_texts, tmp_path)
-        print(f"Processing {uploaded_file.name}: {len(chunks)} chunks created")
+        with st.spinner(f"Creating chunks for: {uploaded_file.name}"):
+            # chunks = create_chunks(text, uploaded_file.name)
+            chunks = get_chunked_documents_pipeline(page_texts,tmp_path)
+            print(chunks)
+            print(len(chunks))
         
         if not chunks:
-            print(f"No valid chunks created for {uploaded_file.name}")
+            st.error(f"No valid chunks created for {uploaded_file.name}")
             return None
         
         # Store embeddings
-        temp_dir = f'/tmp/{uploaded_file.name}'
-        vectorstore = store_embeddings_excel(chunks, temp_dir)
+        with st.spinner(f"Creating embeddings for: {uploaded_file.name}"):
+            temp_dir = f'/tmp/{uploaded_file.name}'
+            vectorstore = store_embeddings_excel(chunks, temp_dir)
         
         # Generate description
-        description = generate_description(vectorstore)
-        print(f"Processing {uploaded_file.name}: Description generated")
+        with st.spinner(f"Generating description for: {uploaded_file.name}"):
+            description = generate_description(vectorstore)
+            print(description)
         
         # Clean up temporary file
         os.unlink(tmp_path)
@@ -238,65 +248,7 @@ def process_pdf_file(uploaded_file) -> Dict[str, Any]:
         }
         
     except Exception as e:
-        print(f"Error processing {uploaded_file.name}: {str(e)}")
-        return None
-
-def process_pdf_file_with_progress(uploaded_file, progress_callback=None) -> Dict[str, Any]:
-    """Process a single PDF file with progress callback"""
-    try:
-        if progress_callback:
-            progress_callback(f"Starting {uploaded_file.name}...")
-        
-        # Create temporary file
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as tmp_file:
-            tmp_file.write(uploaded_file.getvalue())
-            tmp_path = tmp_file.name
-        
-        if progress_callback:
-            progress_callback(f"Reading PDF: {uploaded_file.name}")
-        
-        # Read PDF text
-        page_texts = convert_pdf_to_text_new(tmp_path)
-        
-        if progress_callback:
-            progress_callback(f"Creating chunks: {uploaded_file.name}")
-        
-        # Create chunks
-        chunks = get_chunked_documents_pipeline(page_texts, tmp_path)
-        
-        if not chunks:
-            if progress_callback:
-                progress_callback(f"Error: No chunks created for {uploaded_file.name}")
-            return None
-        
-        if progress_callback:
-            progress_callback(f"Creating embeddings: {uploaded_file.name}")
-        
-        # Store embeddings
-        temp_dir = f'/tmp/{uploaded_file.name}'
-        vectorstore = store_embeddings_excel(chunks, temp_dir)
-        
-        if progress_callback:
-            progress_callback(f"Generating description: {uploaded_file.name}")
-        
-        # Generate description
-        description = generate_description(vectorstore)
-        
-        # Clean up temporary file
-        os.unlink(tmp_path)
-        
-        if progress_callback:
-            progress_callback(f"Completed: {uploaded_file.name}")
-        
-        return {
-            "pdf_file": uploaded_file.name,
-            "description": description,
-            "vectorstore": temp_dir
-        }
-        
-    except Exception as e:
-        if progress_callback:
-            progress_callback(f"Error processing {uploaded_file.name}: {str(e)}")
+        st.error(f"Error processing {uploaded_file.name}: {str(e)}")
         return None
 
 def query_documents_with_messages(query: str, pdf_dicts: List[Dict[str, Any]], message_container) -> str:
@@ -418,174 +370,51 @@ else:
 # Show current status
 if st.session_state.pdf_dicts:
     st.sidebar.success(f"📚 {len(st.session_state.pdf_dicts)} documents loaded")
-    
-    # Show folder statistics
-    folder_stats = {}
-    for pdf_dict in st.session_state.pdf_dicts:
-        file_name = pdf_dict['pdf_file']
-        if '/' in file_name or '\\' in file_name:
-            folder_path = '/'.join(file_name.split('/')[:-1]) if '/' in file_name else '\\'.join(file_name.split('\\')[:-1])
-            folder_stats[folder_path] = folder_stats.get(folder_path, 0) + 1
-        else:
-            folder_stats['Root'] = folder_stats.get('Root', 0) + 1
-    
-    if len(folder_stats) > 1:
-        st.sidebar.subheader("📁 Folders")
-        for folder, count in folder_stats.items():
-            display_name = folder if folder != 'Root' else 'Root'
-            st.sidebar.write(f"• {display_name}: {count} docs")
 
 if page == "Upload Documents":
     st.markdown('<div class="upload-section">', unsafe_allow_html=True)
     st.header("📤 Upload PDF Documents")
     
-    # File upload options
-    upload_option = st.radio(
-        "Choose upload method:",
-        ["📁 Upload Folder", "📄 Upload Individual Files"],
-        help="Select whether to upload a folder or individual files"
+    uploaded_files = st.file_uploader(
+        "Choose PDF files",
+        type=['pdf'],
+        accept_multiple_files=True,
+        help="Upload one or more PDF files to analyze"
     )
-    
-    uploaded_files = []
-    
-    if upload_option == "📁 Upload Folder":
-        uploaded_folder = st.file_uploader(
-            "Choose a folder containing PDF files",
-            type=['pdf'],
-            accept_multiple_files=True,
-            help="Upload all PDF files from a folder at once"
-        )
-        uploaded_files = uploaded_folder if uploaded_folder else []
-        
-        if uploaded_files:
-            st.success(f"📁 Found {len(uploaded_files)} PDF file(s) in the folder")
-            
-    else:  # Upload Individual Files
-        uploaded_files = st.file_uploader(
-            "Choose PDF files",
-            type=['pdf'],
-            accept_multiple_files=True,
-            help="Upload one or more PDF files to analyze"
-        )
     
     if uploaded_files:
         st.write(f"**Uploaded {len(uploaded_files)} file(s):**")
         
-        # Group files by folder structure if they have path separators
-        files_by_folder = {}
+        # Show file list
         for file in uploaded_files:
-            # Extract folder path from filename if it contains path separators
-            if '/' in file.name or '\\' in file.name:
-                folder_path = '/'.join(file.name.split('/')[:-1]) if '/' in file.name else '\\'.join(file.name.split('\\')[:-1])
-                if folder_path not in files_by_folder:
-                    files_by_folder[folder_path] = []
-                files_by_folder[folder_path].append(file)
+            if file.name in st.session_state.processed_files:
+                st.success(f"✅ {file.name} (already processed)")
             else:
-                # Files in root
-                if 'Root' not in files_by_folder:
-                    files_by_folder['Root'] = []
-                files_by_folder['Root'].append(file)
-        
-        # Display files organized by folder
-        for folder_path, files in files_by_folder.items():
-            if folder_path == 'Root':
-                st.subheader("📁 Root Files")
-            else:
-                st.subheader(f"📁 {folder_path}")
-            
-            for file in files:
-                if file.name in st.session_state.processed_files:
-                    st.success(f"✅ {file.name.split('/')[-1] if '/' in file.name else file.name} (already processed)")
-                else:
-                    st.info(f"📄 {file.name.split('/')[-1] if '/' in file.name else file.name}")
-        
-        # Show summary statistics
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.metric("Total Files", len(uploaded_files))
-        with col2:
-            processed_count = sum(1 for f in uploaded_files if f.name in st.session_state.processed_files)
-            st.metric("Already Processed", processed_count)
-        with col3:
-            pending_count = len(uploaded_files) - processed_count
-            st.metric("Pending", pending_count)
-        
-        # File selection for processing
-        if uploaded_files:
-            st.subheader("🔧 Processing Options")
-            
-            # Allow users to select specific files to process
-            files_to_process_options = st.multiselect(
-                "Select files to process (leave empty to process all):",
-                options=[f.name for f in uploaded_files if f.name not in st.session_state.processed_files],
-                default=[f.name for f in uploaded_files if f.name not in st.session_state.processed_files],
-                help="Choose which files to process. Files already processed are excluded."
-            )
-            
-            # Filter files based on selection
-            if files_to_process_options:
-                files_to_process = [f for f in uploaded_files if f.name in files_to_process_options]
-            else:
-                files_to_process = [f for f in uploaded_files if f.name not in st.session_state.processed_files]
-            
-            # Show processing summary
-            if files_to_process:
-                st.info(f"📋 Will process {len(files_to_process)} file(s)")
-                
-                # Show selected files
-                with st.expander("📋 Files to be processed"):
-                    for file in files_to_process:
-                        st.write(f"• {file.name}")
+                st.info(f"📄 {file.name}")
         
         # Process files button
         if st.button("🚀 Process Documents", type="primary"):
-            # Use the filtered files from the selection above
-            # files_to_process is already defined in the selection section
+            progress_bar = st.progress(0)
+            status_text = st.empty()
             
-            if not files_to_process:
-                st.info("All uploaded files have already been processed!")
-            else:
-                # Create progress tracking
-                progress_bar = st.progress(0)
-                status_text = st.empty()
-                progress_log = st.empty()
-                
-                new_pdf_dicts = []
-                completed_count = [0]  # Use list to make it mutable
-                
-                def update_progress(message):
-                    progress_log.text(f"📝 {message}")
-                    completed_count[0] += 1
-                    progress_bar.progress(completed_count[0] / len(files_to_process))
-                
-                # Process files in parallel
-                with concurrent.futures.ThreadPoolExecutor(max_workers=min(4, len(files_to_process))) as executor:
-                    # Submit all tasks
-                    future_to_file = {
-                        executor.submit(process_pdf_file_with_progress, file, update_progress): file 
-                        for file in files_to_process
-                    }
+            new_pdf_dicts = []
+            
+            for i, uploaded_file in enumerate(uploaded_files):
+                if uploaded_file.name not in st.session_state.processed_files:
+                    status_text.text(f"Processing {uploaded_file.name}...")
                     
-                    # Collect results as they complete
-                    for future in concurrent.futures.as_completed(future_to_file):
-                        file = future_to_file[future]
-                        try:
-                            pdf_dict = future.result()
-                            if pdf_dict:
-                                new_pdf_dicts.append(pdf_dict)
-                                st.session_state.processed_files.add(file.name)
-                                status_text.text(f"✅ Completed: {file.name}")
-                            else:
-                                status_text.text(f"❌ Failed: {file.name}")
-                        except Exception as e:
-                            status_text.text(f"❌ Error processing {file.name}: {str(e)}")
-                
-                # Add new pdf_dicts to session state
-                st.session_state.pdf_dicts.extend(new_pdf_dicts)
-                
-                status_text.text("✅ All processing complete!")
-                progress_log.text("")
-                st.success(f"Successfully processed {len(new_pdf_dicts)} new document(s)")
+                    pdf_dict = process_pdf_file(uploaded_file)
+                    if pdf_dict:
+                        new_pdf_dicts.append(pdf_dict)
+                        st.session_state.processed_files.add(uploaded_file.name)
+                    
+                    progress_bar.progress((i + 1) / len(uploaded_files))
+            
+            # Add new pdf_dicts to session state
+            st.session_state.pdf_dicts.extend(new_pdf_dicts)
+            
+            status_text.text("✅ Processing complete!")
+            st.success(f"Successfully processed {len(new_pdf_dicts)} new document(s)")
             
             # Show processed documents
             if st.session_state.pdf_dicts:
@@ -608,33 +437,10 @@ elif page == "Query Documents":
     else:
         st.success(f"✅ {len(st.session_state.pdf_dicts)} document(s) ready for querying")
         
-        # Show available documents organized by folder
+        # Show available documents
         st.subheader("📚 Available Documents")
-        
-        # Group documents by folder structure
-        docs_by_folder = {}
         for pdf_dict in st.session_state.pdf_dicts:
-            file_name = pdf_dict['pdf_file']
-            if '/' in file_name or '\\' in file_name:
-                folder_path = '/'.join(file_name.split('/')[:-1]) if '/' in file_name else '\\'.join(file_name.split('\\')[:-1])
-                if folder_path not in docs_by_folder:
-                    docs_by_folder[folder_path] = []
-                docs_by_folder[folder_path].append(pdf_dict)
-            else:
-                if 'Root' not in docs_by_folder:
-                    docs_by_folder['Root'] = []
-                docs_by_folder['Root'].append(pdf_dict)
-        
-        # Display documents by folder
-        for folder_path, pdf_dicts in docs_by_folder.items():
-            if folder_path == 'Root':
-                st.write("**📁 Root Documents:**")
-            else:
-                st.write(f"**📁 {folder_path}:**")
-            
-            for pdf_dict in pdf_dicts:
-                display_name = pdf_dict['pdf_file'].split('/')[-1] if '/' in pdf_dict['pdf_file'] else pdf_dict['pdf_file']
-                st.write(f"• {display_name}")
+            st.write(f"• {pdf_dict['pdf_file']}")
         
         # Query input
         query = st.text_area(
@@ -720,39 +526,18 @@ elif page == "Document Overview":
         with col3:
             st.metric("Status", "Ready" if st.session_state.pdf_dicts else "No Documents")
         
-        # Group documents by folder structure
-        docs_by_folder = {}
-        for pdf_dict in st.session_state.pdf_dicts:
-            file_name = pdf_dict['pdf_file']
-            if '/' in file_name or '\\' in file_name:
-                folder_path = '/'.join(file_name.split('/')[:-1]) if '/' in file_name else '\\'.join(file_name.split('\\')[:-1])
-                if folder_path not in docs_by_folder:
-                    docs_by_folder[folder_path] = []
-                docs_by_folder[folder_path].append(pdf_dict)
-            else:
-                if 'Root' not in docs_by_folder:
-                    docs_by_folder['Root'] = []
-                docs_by_folder['Root'].append(pdf_dict)
-        
-        # Document details organized by folder
-        for folder_path, pdf_dicts in docs_by_folder.items():
-            if folder_path == 'Root':
-                st.subheader("📁 Root Documents")
-            else:
-                st.subheader(f"📁 {folder_path}")
+        # Document details
+        for i, pdf_dict in enumerate(st.session_state.pdf_dicts, 1):
+            st.markdown(f"""
+            <div class="file-info">
+                <h4>📄 Document {i}: {pdf_dict['pdf_file']}</h4>
+                <p><strong>Description:</strong> {pdf_dict['description'][:200]}...</p>
+                <p><strong>Vector Store:</strong> {pdf_dict['vectorstore']}</p>
+            </div>
+            """, unsafe_allow_html=True)
             
-            for i, pdf_dict in enumerate(pdf_dicts, 1):
-                display_name = pdf_dict['pdf_file'].split('/')[-1] if '/' in pdf_dict['pdf_file'] else pdf_dict['pdf_file']
-                st.markdown(f"""
-                <div class="file-info">
-                    <h4>📄 {display_name}</h4>
-                    <p><strong>Description:</strong> {pdf_dict['description'][:200]}...</p>
-                    <p><strong>Vector Store:</strong> {pdf_dict['vectorstore']}</p>
-                </div>
-                """, unsafe_allow_html=True)
-                
-                with st.expander(f"View full description for {display_name}"):
-                    st.write(pdf_dict['description'])
+            with st.expander(f"View full description for {pdf_dict['pdf_file']}"):
+                st.write(pdf_dict['description'])
     
     st.markdown('</div>', unsafe_allow_html=True)
 
