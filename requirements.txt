@@ -18,3 +18,4 @@ frontend
 tools
 llama-parse
 pymupdf
+requests
