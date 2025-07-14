@@ -229,7 +229,7 @@ def gather_uploads(mode: str) -> List[Tuple[str, bytes]]:
     return uploads
 
 
-def parallel_process(uploads: List[Tuple[str, bytes]], max_workers: int = 4):
+def parallel_process(uploads: List[Tuple[str, bytes]], max_workers: int = 8):
     """Run process_pdf_bytes over all uploads in parallel."""
     progress = st.progress(0.0)
     status = st.empty()
