@@ -319,3 +319,8 @@ def process_page_ocr_2(page, pdf_file):
             print(f"Fallback to LlamaParse also failed for page {page.number}: {fallback_e}")
         
         return ("", page.number + 1)
+
+
+
+def get_reducto_chunks(file_name):
+    return []
