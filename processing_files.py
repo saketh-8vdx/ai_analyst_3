@@ -326,6 +326,9 @@ def process_page_ocr_2(page, pdf_file):
 
 def parse_documents_using_reducto(file_path, fname):
         # Step 1 — ask Reducto for a presigned URL
+    from pathlib import Path
+    file_path = Path(os.path.join(file_path))
+
     upload_form = requests.post(
         "https://platform.reducto.ai/upload",
         headers={"Authorization": f"Bearer {API_KEY}"},
