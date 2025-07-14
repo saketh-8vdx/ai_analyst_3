@@ -16,6 +16,8 @@ encoder = tiktoken.get_encoding("cl100k_base")
 import os
 import openai
 import streamlit as st
+    
+
 
 
 openai.api_key = st.secrets["OPENAI_API_KEY"]
@@ -321,6 +323,169 @@ def process_page_ocr_2(page, pdf_file):
         return ("", page.number + 1)
 
 
+def parse_documents_using_reducto(file_path, fname):
+        # Step 1 — ask Reducto for a presigned URL
+    upload_form = requests.post(
+        "https://platform.reducto.ai/upload",
+        headers={"Authorization": f"Bearer {API_KEY}"},
+    ).json()
+
+    print("upload_form : ", upload_form)
+    # Step 2 — stream the file to the URL Reducto gave you
+    with file_path.open("rb") as f:
+        requests.put(upload_form["presigned_url"], data=f)
+
+    # Step 3 — parse (or split / extract) using the file_id
+
+    parse_payload = {
+        "options": {
+            "ocr_mode": "agentic",
+            "extraction_mode": "ocr",
+            "chunking": {"chunk_mode": "page"}, 
+            "table_summary": {"enabled": True},
+            "figure_summary": { 
+                "enabled": True,
+                "override": True,
+                "prompt": "Understand the figure and add boolean value in content if it is a logo or not. If it is a logo, add False in start of content, otherwise add True in start of content. If the figure is not a logo and it is a graph , in content properly explain what this graph about and give me all axis labels and values in proper format. if figure is not a logo and it is a table give me proper table data."
+            },
+
+        },
+        "advanced_options": {
+            "ocr_system": "combined", 
+            "table_output_format": "html", # "md"
+            "merge_tables": True,
+            "continue_hierarchy": True,
+            "keep_line_breaks": True,
+
+            "spreadsheet_table_clustering": "default",
+            "add_page_markers": False,
+            "remove_text_formatting": False,
+            "return_ocr_data": False,
+            "filter_line_numbers": False,
+            "read_comments": True,
+            "persist_results": False,
+            "exclude_hidden_sheets": False,
+            "exclude_hidden_rows_cols": False,
+            "enable_change_tracking": False
+        },
+
+        "document_url": upload_form["file_id"],
+        "priority": True
+    }
+
+    parse = requests.post(
+        "https://platform.reducto.ai/parse",
+        json=parse_payload,
+        headers={"Authorization": f"Bearer {API_KEY}"},
+    )
+    parse_json = parse.json()
+    print(parse_json)
+
+    chunks = parse_json.get("result", []).get("chunks", [])
+
+    for i, chunk in enumerate(chunks):
+        content = chunk.get("content", "").strip()
+        page_num = chunk.get("blocks", {})[0].get("page", i + 1)
+        combined = f"[FILE NAME]: {fname}\n[PAGE]: {page_num}\n{content}"
+        metadata = {"source": fname, "page": page_num}
+        all_chunks.append(Document(page_content=combined, metadata=metadata))
+
+    page_count = len(chunks)
+    print(f"page_count: {page_count}")
+
+    return all_chunks
+    
+    
+
 
 def get_reducto_chunks(file_name):
-    return []
+    """
+    Processes documents based on file type and creates temporary files.
+    Supports PDF, DOCX, and DOC file formats.
+    """
+
+    
+    # Check file extension
+    file_extension = file_name.lower().split('.')[-1]
+    
+    if file_extension not in ['pdf', 'docx', 'doc']:
+        print(f"Unsupported file type: {file_extension}")
+        return []
+    
+    try:
+        # Read the document content
+        with open(file_name, 'rb') as file:
+            document_content = file.read()
+        
+        # Create temporary file path based on file type
+        temp_file_path = f'/tmp/temp_file_{time.time()}_{uuid.uuid4()}.{file_extension}'
+        
+        # Save the document content to temporary file
+        with open(temp_file_path, 'wb') as temp_file:
+            temp_file.write(document_content)
+        
+        print(f"Successfully created temporary file: {temp_file_path}")
+        print(f"File size: {len(document_content)} bytes")
+
+        chunks = parse_documents_using_reducto(temp_file_path, file_name)
+        print(f"all_chunks: {chunks}")
+        
+        return chunks
+        
+    except FileNotFoundError:
+        print(f"File not found: {file_name}")
+        return []
+    except Exception as e:
+        print(f"Error processing file {file_name}: {e}")
+        return []
+
+
+# def process_documnts_reducto(file_paths):
+#     """
+#     Processes multiple documents using Reducto in parallel.
+#     Args:
+#         file_paths: List of file paths to process
+#     Returns:
+#         List of Document chunks from all processed files
+#     """
+
+    
+#     all_chunks = []
+    
+#     def process_single_file(file_path):
+#         """
+#         Process a single file and return its chunks.
+#         """
+#         try:
+#             print(f"Processing file: {file_path}")
+#             chunks = get_reducto_chunks(file_path)
+#             print(f"Successfully processed {file_path}, got {len(chunks)} chunks")
+#             return chunks
+#         except Exception as e:
+#             print(f"Error processing file {file_path}: {e}")
+#             return []
+    
+#     # Use ThreadPoolExecutor for parallel processing
+#     with ThreadPoolExecutor(max_workers=4) as executor:
+#         # Submit all files for processing
+#         future_to_file = {executor.submit(process_single_file, file_path): file_path 
+#                          for file_path in file_paths}
+        
+#         # Collect results as they complete
+#         for future in as_completed(future_to_file):
+#             file_path = future_to_file[future]
+#             try:
+#                 chunks = future.result()
+#                 if chunks:
+#                     all_chunks.extend(chunks)
+#                     print(f"Added {len(chunks)} chunks from {file_path}")
+#                 else:
+#                     print(f"No chunks returned from {file_path}")
+#             except Exception as e:
+#                 print(f"Exception occurred while processing {file_path}: {e}")
+    
+#     print(f"Total chunks processed: {len(all_chunks)}")
+#     return all_chunks
+    
+    
+
