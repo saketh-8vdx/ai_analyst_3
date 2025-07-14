@@ -16,9 +16,10 @@ encoder = tiktoken.get_encoding("cl100k_base")
 import os
 import openai
 import streamlit as st
-    
+import requests
 
 
+API_KEY = st.secrets["API_KEY"]
 
 openai.api_key = st.secrets["OPENAI_API_KEY"]
 
@@ -336,6 +337,8 @@ def parse_documents_using_reducto(file_path, fname):
         requests.put(upload_form["presigned_url"], data=f)
 
     # Step 3 — parse (or split / extract) using the file_id
+
+    all_chunks = []
 
     parse_payload = {
         "options": {
