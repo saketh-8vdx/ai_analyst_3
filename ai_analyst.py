@@ -106,6 +106,67 @@ def build_agent(all_tools: List[BaseTool],query: str,llm) -> Agent:
    
     )
 
+
+def build_table_agent(all_tools: List[BaseTool], query: str, llm) -> Agent:
+    return Agent(
+        role="Table Analysis and Generation Specialist",
+        goal=(
+            "Analyze user queries to understand what tabular data is requested and generate perfect markdown tables. "
+            f"Current query: {query}\n\n"
+            "Your process:\n"
+            "1. Analyze the query to identify what type of table/data is needed\n"
+            "2. Use relevant PDF tools to extract content based on the query\n"
+            "3. Check if the extracted content contains the requested table\n"
+            "4. If table exists: format it properly in markdown\n"
+            "5. If table doesn't exist: generate a table from available data\n"
+            "6. Always return response in strict markdown table format only\n"
+        ),
+        backstory=(
+            "You are an expert table analyst and generator with deep understanding of data structures. "
+            "You have access to multiple PDF search tools, each containing different document content. "
+            "Your expertise includes:\n"
+            "- Identifying table requirements from user queries\n"
+            "- Recognizing existing tables in extracted content\n"
+            "- Generating new tables from unstructured data\n"
+            "- Creating perfectly formatted markdown tables\n"
+            "- Understanding data relationships and hierarchies\n"
+            "- Converting complex data into clear tabular formats\n\n"
+            "You always respond with properly formatted markdown tables, never plain text or explanations outside the table structure."
+        ),
+        allow_code_execution=False,
+        tools=all_tools,
+        llm=llm,
+        verbose=True
+    )
+
+
+def build_table_task(agent: Agent, query: str) -> Task:
+    return Task(
+        description=(
+            "**Table Analysis and Generation Task**\n\n"
+            f"**User Query:** {query}\n\n"
+            "**Step-by-step process:**\n"
+            "1. **Query Analysis**: Determine what type of table or tabular data the user is requesting\n"
+            "2. **Tool Selection**: Identify which PDF search tools are relevant based on the query\n"
+            "3. **Content Extraction**: Use the selected tools to extract relevant content\n"
+            "4. **Table Detection**: Check if the extracted content already contains the requested table\n"
+            "5. **Table Generation**: \n"
+            "   - If table exists: Extract and format it in perfect markdown\n"
+            "   - If table doesn't exist: Generate a new table from the available data\n"
+            "6. **Formatting**: Ensure the table follows strict markdown table format\n\n"
+            "**Output Requirements:**\n"
+            "- Return ONLY the markdown table, no additional text or explanations\n"
+            "- Use proper markdown table syntax with headers and alignment\n"
+            "- Include all relevant data from the extracted content\n"
+            "- Ensure the table directly answers the user's query\n"
+        ),
+        expected_output="Perfectly formatted markdown table that answers the user query",
+        agent=agent,
+        async_execution=False,
+        input_variables={"question": query},
+    )
+
+
 def build_task(agent: Agent, query: str) -> Task:
     return Task(
         description=(
@@ -125,10 +186,11 @@ def build_task(agent: Agent, query: str) -> Task:
 def answer_query(query: str, pdf_dicts: List[Dict[str, Any]], verbose: bool = True):
     tools = build_tools(pdf_dicts)
     qa_agent = build_agent(tools,query)
-    task = build_task(qa_agent, query)
-
+    table_agent = build_table_agent(tools,query)
+    task1 = build_task(qa_agent, query)
+    task2 = build_table_task(table_agent, query)
     crew = Crew(
-        agents=[qa_agent],
+        agents=[qa_agent, table_agent],
         tasks=[task],
         process=Process.sequential,
         verbose=verbose
