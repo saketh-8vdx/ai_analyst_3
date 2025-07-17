@@ -156,6 +156,70 @@ TABLE_FUNCTION_SCHEMA = {
     }
 }
 
+# def build_table_agent(all_tools: List[BaseTool], query: str, llm) -> Agent:
+#     return Agent(
+#         role="JSON Table Analysis and Generation Specialist",
+#         goal=(
+#             "Analyze user queries to understand what tabular data is requested and generate perfect JSON tables. "
+#             f"Current query: {query}\n\n"
+#             "Your process:\n"
+#             "1. Analyze the query to identify what type of table/data is needed\n"
+#             "2. Use relevant PDF tools to extract content based on the query\n"
+#             "3. Check if the extracted content contains the requested table\n"
+#             "4. If table exists: convert it to JSON format\n"
+#             "5. If table doesn't exist: generate a table from available data\n"
+#             "6. Always return response using the generate_table_response function with the exact structure: {\"Table_Name\": \"\", \"column_headers\": [], \"rows\": [[], [], []], \"Description\": \"\"}\n"
+#         ),
+#         backstory=(
+#             "You are an expert table analyst and generator with deep understanding of data structures and JSON formatting. "
+#             "You have access to multiple PDF search tools, each containing different document content. "
+#             "Your expertise includes:\n"
+#             "- Identifying table requirements from user queries\n"
+#             "- Recognizing existing tables in extracted content\n"
+#             "- Generating new tables from unstructured data\n"
+#             "- Creating perfectly formatted JSON tables\n"
+#             "- Understanding data relationships and hierarchies\n"
+#             "- Converting complex data into clear JSON tabular formats\n\n"
+#             "You must ALWAYS use the generate_table_response function to return your response. Never return plain text or explanations outside the JSON structure."
+#         ),
+#         allow_code_execution=False,
+#         tools=all_tools,
+#         llm=llm,
+#         verbose=True,
+#         function_calling=True,
+#         functions=[TABLE_FUNCTION_SCHEMA]
+#     )
+
+# def build_table_task(agent: Agent, query: str) -> Task:
+#     return Task(
+#         description=(
+#             "**JSON Table Analysis and Generation Task**\n\n"
+#             f"**User Query:** {query}\n\n"
+#             "**Step-by-step process:**\n"
+#             "1. **Query Analysis**: Determine what type of table or tabular data the user is requesting\n"
+#             "2. **Tool Selection**: Identify which PDF search tools are relevant based on the query\n"
+#             "3. **Content Extraction**: Use the selected tools to extract relevant content\n"
+#             "4. **Table Detection**: Check if the extracted content already contains the requested table\n"
+#             "5. **Table Generation**: \n"
+#             "   - If table exists: Extract and convert it to JSON format\n"
+#             "   - If table doesn't exist: Generate a new table from the available data\n"
+#             "6. **Function Call**: Use the generate_table_response function to return the result\n\n"
+#             "**CRITICAL OUTPUT REQUIREMENTS:**\n"
+#             "- You MUST use the generate_table_response function to return your response\n"
+#             "- The function will automatically format the data as: {\"column_headers\": [], \"rows\": [[], [], []]}\n"
+#             "- No additional text, explanations, or markdown formatting\n"
+#             "- Include all relevant data from the extracted content\n"
+#             "- Ensure the table directly answers the user's query\n"
+#             "- The response will be automatically validated as proper JSON\n"
+#         ),
+#         expected_output="Function call to generate_table_response with properly structured table data that answers the user query",
+#         agent=agent,
+#         async_execution=False,
+#         input_variables={"question": query},
+#     )
+
+
+
 def build_table_agent(all_tools: List[BaseTool], query: str, llm) -> Agent:
     return Agent(
         role="JSON Table Analysis and Generation Specialist",
@@ -190,6 +254,7 @@ def build_table_agent(all_tools: List[BaseTool], query: str, llm) -> Agent:
         functions=[TABLE_FUNCTION_SCHEMA]
     )
 
+
 def build_table_task(agent: Agent, query: str) -> Task:
     return Task(
         description=(
@@ -206,13 +271,17 @@ def build_table_task(agent: Agent, query: str) -> Task:
             "6. **Function Call**: Use the generate_table_response function to return the result\n\n"
             "**CRITICAL OUTPUT REQUIREMENTS:**\n"
             "- You MUST use the generate_table_response function to return your response\n"
-            "- The function will automatically format the data as: {\"column_headers\": [], \"rows\": [[], [], []]}\n"
-            "- No additional text, explanations, or markdown formatting\n"
+            "- The function requires EXACT structure: {\"Table_Name\": \"\", \"column_headers\": [], \"rows\": [[], [], []], \"Description\": \"\"}\n"
+            "- NO additional text, explanations, or markdown formatting\n"
             "- Include all relevant data from the extracted content\n"
             "- Ensure the table directly answers the user's query\n"
             "- The response will be automatically validated as proper JSON\n"
+            "- Table_Name: Provide a descriptive name for the table\n"
+            "- column_headers: List of column names as strings\n"
+            "- rows: List of lists, where each inner list represents a row of data\n"
+            "- Description: One sentence describing what the table contains\n"
         ),
-        expected_output="Function call to generate_table_response with properly structured table data that answers the user query",
+        expected_output="Function call to generate_table_response with properly structured table data that answers the user query, A valid JSON object containing Table Name, Columns, Rows, Description",
         agent=agent,
         async_execution=False,
         input_variables={"question": query},
