@@ -90,6 +90,7 @@ st.markdown(
 )
 
 
+
 for key, default in {
     "pdf_dicts": [],
     "processed_files": set(),
@@ -448,3 +449,42 @@ st.markdown(
     "<div style='text-align:center;color:#666'>Built with Streamlit • Powered by AI Analysis</div>",
     unsafe_allow_html=True,
 )
+light_css = """
+<style>
+    .main-header { font-size: 2.5rem; font-weight: bold; color: #1f77b4; text-align: center; margin-bottom: 2rem; }
+    .upload-section { background-color: #f0f2f6; padding: 2rem; border-radius: 10px; margin: 1rem 0; }
+    .query-section { background-color: #e8f4fd; padding: 2rem; border-radius: 10px; margin: 1rem 0; }
+    .response-section { background-color: #f9f9f9; padding: 2rem; border-radius: 10px; margin: 1rem 0; }
+    .file-info { background-color: #e8f5e8; padding: 1rem; border-radius: 5px; margin: 0.5rem 0; }
+    .stProgress > div > div > div > div { background-color: #1f77b4; }
+    .streaming-response { background-color: #f0f8ff; border-left: 4px solid #1f77b4; padding: 1rem; margin: 1rem 0; font-family: 'Courier New', monospace; color: #000; }
+    .message-log { background-color: #f8f9fa; border: 1px solid #dee2e6; border-radius: 5px; padding: 1rem; margin: 0.5rem 0; font-family: 'Courier New', monospace; font-size: 0.9rem; max-height: 400px; overflow-y: auto; color: #000; }
+    .message-info { color: #0066cc; font-weight: bold; }
+    .message-success { color: #28a745; font-weight: bold; }
+    .message-warning { color: #ffc107; font-weight: bold; }
+    .message-error { color: #dc3545; font-weight: bold; }
+    .message-tool { color: #6f42c1; font-weight: bold; }
+    .message-agent { color: #fd7e14; font-weight: bold; }
+</style>
+"""
+
+dark_css = """
+<style>
+    .main-header { font-size: 2.5rem; font-weight: bold; color: #66b2ff; text-align: center; margin-bottom: 2rem; }
+    .upload-section { background-color: #1e1e1e; padding: 2rem; border-radius: 10px; margin: 1rem 0; }
+    .query-section { background-color: #222; padding: 2rem; border-radius: 10px; margin: 1rem 0; }
+    .response-section { background-color: #2a2a2a; padding: 2rem; border-radius: 10px; margin: 1rem 0; }
+    .file-info { background-color: #2c3e50; padding: 1rem; border-radius: 5px; margin: 0.5rem 0; color: #fff; }
+    .stProgress > div > div > div > div { background-color: #66b2ff; }
+    .streaming-response { background-color: #111; border-left: 4px solid #66b2ff; padding: 1rem; margin: 1rem 0; font-family: 'Courier New', monospace; color: #eee; }
+    .message-log { background-color: #222; border: 1px solid #444; border-radius: 5px; padding: 1rem; margin: 0.5rem 0; font-family: 'Courier New', monospace; font-size: 0.9rem; max-height: 400px; overflow-y: auto; color: #eee; }
+    .message-info { color: #66b2ff; font-weight: bold; }
+    .message-success { color: #28a745; font-weight: bold; }
+    .message-warning { color: #ffc107; font-weight: bold; }
+    .message-error { color: #dc3545; font-weight: bold; }
+    .message-tool { color: #a678ff; font-weight: bold; }
+    .message-agent { color: #fd7e14; font-weight: bold; }
+</style>
+"""
+
+st.markdown(light_css, unsafe_allow_html=True)
