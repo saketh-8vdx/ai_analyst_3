@@ -19,6 +19,12 @@ from langchain.callbacks.base import AsyncCallbackHandler
 from crewai import Agent, Crew, Process
 import streamlit as st
 import openai
+from crewai import LLM
+stream_llm = LLM(
+    model="openai/o3",   
+    stream=True,             
+    temperature=0
+)
 
 
 openai.api_key = st.secrets["OPENAI_API_KEY"]
@@ -100,7 +106,7 @@ def build_agent(all_tools: List[BaseTool],query: str,llm) -> Agent:
         ),
         allow_code_execution=False,  # set True if you’d like code-scratch-pad
         tools=all_tools,
-        llm = llm,
+        llm = stream_llm,
         verbose=True
 
    
