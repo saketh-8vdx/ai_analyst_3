@@ -281,8 +281,8 @@ def query_documents_with_messages(query: str, pdf_dicts: List[Dict[str, Any]], m
     handler.add_message("info", "⚡ Executing analysis…")
     result = crew.kickoff()
     handler.add_message("success", "🎉 Analysis completed successfully!")
-    # data = extract_tables_from_reports(str(result))
-    return str(result)
+    data = extract_tables_from_reports(str(result))
+    return data
 
 
 def query_documents_local(query: str, pdf_dicts: List[Dict[str, Any]]):
