@@ -274,15 +274,15 @@ def query_documents_with_messages(query: str, pdf_dicts: List[Dict[str, Any]], m
     tools = build_tools(pdf_dicts)
     handler.add_message("success", f"✅ Built {len(tools)} search tools")
 
-    agent = build_table_agent(tools, query, llm)
-    task = build_table_task(agent, query)
+    agent = build_agent(tools, query, llm)
+    task = build_task(agent, query)
     crew = Crew(agents=[agent], tasks=[task], process=Process.sequential, verbose=True)
 
     handler.add_message("info", "⚡ Executing analysis…")
     result = crew.kickoff()
     handler.add_message("success", "🎉 Analysis completed successfully!")
-    data = extract_tables_from_reports(str(result))
-    return data
+    # data = extract_tables_from_reports(str(result))
+    return str(result)
 
 
 def query_documents_local(query: str, pdf_dicts: List[Dict[str, Any]]):
