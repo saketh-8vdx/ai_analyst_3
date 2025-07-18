@@ -291,8 +291,8 @@ def build_table_task(agent: Agent, query: str) -> Task:
 
 def answer_query(query: str, pdf_dicts: List[Dict[str, Any]], verbose: bool = True):
     tools = build_tools(pdf_dicts)
-    qa_agent = build_table_agent(tools,query)
-    task = build_table_task(qa_agent, query)
+    qa_agent = build_agent(tools,query)
+    task = build_task(qa_agent, query)
 
     crew = Crew(
         agents=[qa_agent],
