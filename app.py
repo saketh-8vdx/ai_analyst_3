@@ -263,7 +263,7 @@ def parallel_process(uploads: List[Tuple[str, bytes]], max_workers: int = 8):
     return new_docs
 
 def query_documents_with_messages(query: str, pdf_dicts: List[Dict[str, Any]], message_container):
-    from ai_analyst import build_tools, build_agent, build_task
+    from ai_analyst import build_tools, build_agent, build_task,build_table_task,build_table_agent
 
     handler = StreamlitCallbackHandler(message_container)
     llm = LLM(model="openai/gpt-4o", temperature=0, callbacks=[handler])
@@ -274,14 +274,15 @@ def query_documents_with_messages(query: str, pdf_dicts: List[Dict[str, Any]], m
     tools = build_tools(pdf_dicts)
     handler.add_message("success", f"✅ Built {len(tools)} search tools")
 
-    agent = build_agent(tools, query, llm)
-    task = build_task(agent, query)
+    agent = build_table_agent(tools, query, llm)
+    task = build_table_task(agent, query)
     crew = Crew(agents=[agent], tasks=[task], process=Process.sequential, verbose=True)
 
     handler.add_message("info", "⚡ Executing analysis…")
     result = crew.kickoff()
     handler.add_message("success", "🎉 Analysis completed successfully!")
-    return str(result)
+    data = extract_tables_from_reports(str(result))
+    return data
 
 
 def query_documents_local(query: str, pdf_dicts: List[Dict[str, Any]]):
