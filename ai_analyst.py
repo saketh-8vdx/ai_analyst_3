@@ -21,7 +21,7 @@ import streamlit as st
 import openai
 from crewai import LLM
 stream_llm = LLM(
-    model="openai/o3",   
+    model="openai/gpt-4o",   
     stream=True,             
     temperature=0
 )
