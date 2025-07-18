@@ -21,9 +21,7 @@ import streamlit as st
 import openai
 from crewai import LLM
 stream_llm = LLM(
-    model="openai/gpt-4o",   
-    stream=True,             
-    temperature=0
+    model="openai/o3"
 )
 
 
@@ -61,7 +59,7 @@ class VectorStoreSearchTool(BaseTool):
             # Combine results
             results = []
             for i, doc in enumerate(docs, 1):
-                content = doc.page_content[:500]  # Limit content length
+                content = doc.page_content  # Limit content length
                 results.append(f"Result {i}: {content}")
             
             return "\n\n".join(results)
@@ -226,6 +224,75 @@ TABLE_FUNCTION_SCHEMA = {
 
 
 
+# def build_table_agent(all_tools: List[BaseTool], query: str, llm) -> Agent:
+#     return Agent(
+#         role="JSON Table Analysis and Generation Specialist",
+#         goal=(
+#             "Analyze user queries to understand what tabular data is requested and generate perfect JSON tables. "
+#             f"Current query: {query}\n\n"
+#             "Your process:\n"
+#             "1. Analyze the query to identify what type of table/data is needed\n"
+#             "2. Use relevant PDF tools to extract content based on the query\n"
+#             "3. Check if the extracted content contains the requested table\n"
+#             "4. If table exists: convert it to JSON format\n"
+#             "5. If table doesn't exist: generate a table from available data\n"
+#             "6. Always return response using the generate_table_response function with the exact structure: {\"Table_Name\": \"\", \"column_headers\": [], \"rows\": [[], [], []], \"Description\": \"\"}\n"
+#         ),
+#         backstory=(
+#             "You are an expert table analyst and generator with deep understanding of data structures and JSON formatting. "
+#             "You have access to multiple PDF search tools, each containing different document content. "
+#             "Your expertise includes:\n"
+#             "- Identifying table requirements from user queries\n"
+#             "- Recognizing existing tables in extracted content\n"
+#             "- Generating new tables from unstructured data\n"
+#             "- Creating perfectly formatted JSON tables\n"
+#             "- Understanding data relationships and hierarchies\n"
+#             "- Converting complex data into clear JSON tabular formats\n\n"
+#             "You must ALWAYS use the generate_table_response function to return your response. Never return plain text or explanations outside the JSON structure."
+#         ),
+#         allow_code_execution=False,
+#         tools=all_tools,
+#         llm=llm,
+#         verbose=True,
+#         function_calling=True,
+#         functions=[TABLE_FUNCTION_SCHEMA]
+#     )
+
+
+# def build_table_task(agent: Agent, query: str) -> Task:
+#     return Task(
+#         description=(
+#             "**JSON Table Analysis and Generation Task**\n\n"
+#             f"**User Query:** {query}\n\n"
+#             "**Step-by-step process:**\n"
+#             "1. **Query Analysis**: Determine what type of table or tabular data the user is requesting\n"
+#             "2. **Tool Selection**: Identify which PDF search tools are relevant based on the query\n"
+#             "3. **Content Extraction**: Use the selected tools to extract relevant content\n"
+#             "4. **Table Detection**: Check if the extracted content already contains the requested table\n"
+#             "5. **Table Generation**: \n"
+#             "   - If table exists: Extract and convert it to JSON format\n"
+#             "   - If table doesn't exist: Generate a new table from the available data\n"
+#             "6. **Function Call**: Use the generate_table_response function to return the result\n\n"
+#             "**CRITICAL OUTPUT REQUIREMENTS:**\n"
+#             "- You MUST use the generate_table_response function to return your response\n"
+#             "- The function requires EXACT structure: {\"Table_Name\": \"\", \"column_headers\": [], \"rows\": [[], [], []], \"Description\": \"\"}\n"
+#             "- NO additional text, explanations, or markdown formatting\n"
+#             "- Include all relevant data from the extracted content\n"
+#             "- Ensure the table directly answers the user's query\n"
+#             "- The response will be automatically validated as proper JSON\n"
+#             "- Table_Name: Provide a descriptive name for the table\n"
+#             "- column_headers: List of column names as strings\n"
+#             "- rows: List of lists, where each inner list represents a row of data\n"
+#             "- Description: One sentence describing what the table contains\n"
+#         ),
+#         expected_output="Function call to generate_table_response with properly structured table data that answers the user query, A valid JSON object containing Table Name, Columns, Rows, Description",
+#         agent=agent,
+#         async_execution=False,
+#         input_variables={"question": query},
+#     )
+
+
+
 def build_table_agent(all_tools: List[BaseTool], query: str, llm) -> Agent:
     return Agent(
         role="JSON Table Analysis and Generation Specialist",
@@ -238,7 +305,7 @@ def build_table_agent(all_tools: List[BaseTool], query: str, llm) -> Agent:
             "3. Check if the extracted content contains the requested table\n"
             "4. If table exists: convert it to JSON format\n"
             "5. If table doesn't exist: generate a table from available data\n"
-            "6. Always return response using the generate_table_response function with the exact structure: {\"Table_Name\": \"\", \"column_headers\": [], \"rows\": [[], [], []], \"Description\": \"\"}\n"
+            "6. Always return response using the generate_table_response function with the exact structure: {\"Table_Name\": \"\", \"column_headers\": [], \"rows\": [[], [], []]}\n"
         ),
         backstory=(
             "You are an expert table analyst and generator with deep understanding of data structures and JSON formatting. "
@@ -255,9 +322,7 @@ def build_table_agent(all_tools: List[BaseTool], query: str, llm) -> Agent:
         allow_code_execution=False,
         tools=all_tools,
         llm=llm,
-        verbose=True,
-        function_calling=True,
-        functions=[TABLE_FUNCTION_SCHEMA]
+        verbose=True
     )
 
 
@@ -277,7 +342,7 @@ def build_table_task(agent: Agent, query: str) -> Task:
             "6. **Function Call**: Use the generate_table_response function to return the result\n\n"
             "**CRITICAL OUTPUT REQUIREMENTS:**\n"
             "- You MUST use the generate_table_response function to return your response\n"
-            "- The function requires EXACT structure: {\"Table_Name\": \"\", \"column_headers\": [], \"rows\": [[], [], []], \"Description\": \"\"}\n"
+            "- The function requires EXACT structure: {\"Table_Name\": \"\", \"column_headers\": [], \"rows\": [[], [], []]}\n"
             "- NO additional text, explanations, or markdown formatting\n"
             "- Include all relevant data from the extracted content\n"
             "- Ensure the table directly answers the user's query\n"
@@ -286,8 +351,10 @@ def build_table_task(agent: Agent, query: str) -> Task:
             "- column_headers: List of column names as strings\n"
             "- rows: List of lists, where each inner list represents a row of data\n"
             "- Description: One sentence describing what the table contains\n"
+            "- If no data available return empty table with all the keys\n"
+            "- Properly handle the case where no data is available, do not return any description only valid json with all the keys retur in final result.\n"
         ),
-        expected_output="Function call to generate_table_response with properly structured table data that answers the user query, A valid JSON object containing Table Name, Columns, Rows, Description",
+        expected_output="Function call to generate_table_response with properly structured table data that answers the user query, A valid JSON object containing Table Name, Columns, Rows",
         agent=agent,
         async_execution=False,
         input_variables={"question": query},
@@ -295,10 +362,12 @@ def build_table_task(agent: Agent, query: str) -> Task:
 
 
 
+
+
 def answer_query(query: str, pdf_dicts: List[Dict[str, Any]], verbose: bool = True):
     tools = build_tools(pdf_dicts)
-    qa_agent = build_agent(tools,query)
-    task = build_task(qa_agent, query)
+    qa_agent = build_table_agent(tools,query)
+    task = build_table_task(qa_agent, query)
 
     crew = Crew(
         agents=[qa_agent],
@@ -307,6 +376,97 @@ def answer_query(query: str, pdf_dicts: List[Dict[str, Any]], verbose: bool = Tr
         verbose=verbose
     )
     return crew.kickoff()
+
+
+def extract_tables_from_reports(final_result=None):
+    """
+    
+    Parameters:
+      vectorstore: vectorstore instance.
+      query: Instructions used to generate the tables IN proper json format from given unstructured json table data.
+      system_prompt: The system instruction to guide the Table generation.
+    
+    Returns:
+      A JSON object containing generated table with with keys "columns" (a list of column headers, hierarchies flattened) and "rows" (a list of row entries).
+    """
+
+    query = "Understand the unstructured json table data and generate the tables in proper json format. \n You will get the Table name, Columns and Rows in the unstructured json data. \n understand it promperly and generate the final result as strict json object of table with proper Table name , Columns and Rows. \n Properly handle the case where no data is available, do not return any description only valid json with all the keys retur in final result."
+    system_prompt = "You are a helpful assistant that generates tables in proper json format from unstructured json table data."
+
+    messages = [
+        {
+            "role": "system",
+            "content": system_prompt
+        },
+        {
+            "role": "user",
+            "content": (
+                f"Query :\n {query} \n\n Unstructured JSON table data :\n {final_result}"
+            )
+        }
+    ]
+    
+    functions = [
+        {
+            "name": "extract_tables",
+            "description": (
+                "Generate the tables in proper json format from an Unstructured JSON table data."
+                "Return the result as a valid JSON object with keys: "
+                "'headers' (a list of flat column headers, with hierarchical names combined), "
+                "and 'rows' (a list of rows, where each row is a list of cell values including row headers)."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "table": {
+                        "type": "object",
+                        "properties": {
+                            "headers": {
+                                "type": "array",
+                                "items": {"type": "string"},
+                                "description": "Flat list of column headers after combining hierarchical names."
+                            },
+                            "rows": {
+                                "type": "array",
+                                "items": {
+                                    "type": "array",
+                                    "items": {"type": "string"},
+                                    "description": "A single row of cell values, matching the headers."
+                                },
+                                "description": "All rows of the table."
+                            }
+                        },
+                        "required": ["headers", "rows"]
+                    }
+                },
+                "required": ["table"]
+            }
+        }
+    ]
+
+    # Call the GPT‑4 model (using a model variant that supports function calling, e.g. gpt-4-0314)
+    response = openai.chat.completions.create(
+        model="gpt-4o",  # or your designated GPT-4o model identifier
+        messages=messages,
+        functions=functions,
+        function_call={"name": "extract_tables"},
+    )
+    
+    if response.choices[0].message.function_call:
+        function_arguments = response.choices[0].message.function_call.arguments
+        print("function_arguments: ",function_arguments)
+        try:
+            function_arguments = json.loads(function_arguments)
+        except json.JSONDecodeError as e:
+            print(f"Error parsing JSON: {e}")
+            print(f"Problematic text: {function_arguments}..")
+        
+        print(function_arguments)
+        return function_arguments
+    else:
+        # In case no function call is returned, return the plain text
+        return {"error": "No function call returned."}
+
 
 
 

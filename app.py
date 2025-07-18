@@ -10,7 +10,7 @@ from typing import List, Dict, Any, Tuple
 import requests
 import json
 
-from ai_analyst import read_pdf, create_chunks, store_embeddings_excel, generate_description
+from ai_analyst import read_pdf, create_chunks, store_embeddings_excel, generate_description,extract_tables_from_reports
 from processing_files import convert_pdf_to_text_new, get_chunked_documents_pipeline, get_reducto_chunks
 from langchain.callbacks.base import BaseCallbackHandler
 from crewai import LLM, Crew, Process
@@ -287,7 +287,9 @@ def query_documents_with_messages(query: str, pdf_dicts: List[Dict[str, Any]], m
 def query_documents_local(query: str, pdf_dicts: List[Dict[str, Any]]):
     from ai_analyst import answer_query
     try:
-        return answer_query(query, pdf_dicts)
+        res =answer_query(query, pdf_dicts)
+        table_data = extract_tables_from_reports(str(res))
+        return table_data
     except Exception as e:
         return f"Error querying documents: {e}"
 
