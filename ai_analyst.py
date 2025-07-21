@@ -94,44 +94,132 @@ def build_tools(pdf_dicts: List[Dict[str, Any]]) -> List[BaseTool]:
     
     return tools
 
-def build_agent(all_tools: List[BaseTool],query: str,llm) -> Agent:
-    return Agent(
-        role="Document QA Expert",
-        goal=(
-            "For every file you have a tool with descriptions of the PDFs.  \n"
-            f"by clearly understanding the users query which is {query}, you need to decide which tools to use \n" 
-            "in order to fetch the context that will help you answer the query.  \n"
-            "Give the final answer as the response to the user query.  \n"
-        ),
-        backstory=(
-            "You have one search tool per PDF.  \n"
-            "For every query: decide which PDFs match, run those tools "
-            "one-by-one, read the returned text, and craft a concise answer."
-            "You can choose any number of tools based on the input query and the descriptions of the PDFs.  \n"
-        ),
-        allow_code_execution=False,  # set True if you’d like code-scratch-pad
-        tools=all_tools,
-        llm = stream_llm,
-        verbose=True
+# def build_agent(all_tools: List[BaseTool],query: str,llm) -> Agent:
+#     return Agent(
+#         role="Document QA Expert",
+#         goal=(
+#             "For every file you have a tool with descriptions of the PDFs.  \n"
+#             f"by clearly understanding the users query which is {query}, you need to decide which tools to use \n" 
+#             "in order to fetch the context that will help you answer the query.  \n"
+#             "Give the final answer as the response to the user query.  \n"
+#         ),
+#         backstory=(
+#             "You have one search tool per PDF.  \n"
+#             "For every query: decide which PDFs match, run those tools "
+#             "one-by-one, read the returned text, and craft a concise answer."
+#             "You can choose any number of tools based on the input query and the descriptions of the PDFs.  \n"
+#         ),
+#         allow_code_execution=False,  # set True if you’d like code-scratch-pad
+#         tools=all_tools,
+#         llm = stream_llm,
+#         verbose=True
 
    
+#     )
+
+# def build_task(agent: Agent, query: str) -> Task:
+#     return Task(
+#         description=(
+#             "Think step-by-step.\n"
+#             f"**Question to answer:** {query}\n\n"
+#             "Decide which PDFs are relevant based on their descriptions.  \n"
+#             "Call the corresponding search_* tools (one or more) in order to answer the users query \n"
+#             "Synthesise a ≤250-word answer, citing snippets verbatim "
+#             "when helpful."
+#         ),
+#         expected_output="Final answer to be shown to the user",
+#         agent=agent,
+#         async_execution=False,
+#         input_variables={"question": query},  
+#     )
+
+
+def build_agent(all_tools: List[BaseTool], query: str) -> Agent:
+    return Agent(
+        role="Comprehensive Document Analysis Expert",
+        goal=(
+            "You are an expert at analyzing user queries and providing comprehensive answers by using "
+            "ALL relevant document search tools. You must first understand the query thoroughly, "
+            "then use MULTIPLE document search tools to gather complete information from all available sources."
+        ),
+        backstory=(
+            "You have extensive experience in document analysis and information retrieval. "
+            "You excel at understanding the nuances of user questions and using ALL available sources. "
+            "You always think step-by-step: first analyze the query, then evaluate which documents could contain "
+            "relevant information, and finally use MULTIPLE search tools to gather comprehensive context. "
+            "You believe in being thorough rather than selective, using more tools rather than fewer to ensure "
+            "complete coverage of the available information."
+        ),
+        allow_code_execution=False,
+        tools=all_tools,
+        llm=stream_llm,
+        verbose=True
     )
 
 def build_task(agent: Agent, query: str) -> Task:
     return Task(
         description=(
-            "Think step-by-step.\n"
-            f"**Question to answer:** {query}\n\n"
-            "Decide which PDFs are relevant based on their descriptions.  \n"
-            "Call the corresponding search_* tools (one or more) in order to answer the users query \n"
-            "Synthesise a ≤250-word answer, citing snippets verbatim "
-            "when helpful."
+            "**Step-by-Step Analysis Process:**\n\n"
+            "**Step 1: Query Understanding**\n"
+            f"- Carefully analyze the user's question: '{query}'\n"
+            "- Identify the key topics, entities, and information needs\n"
+            "- Determine what type of information would best answer this query\n"
+            "- Consider if the query is about financial data, company overview, legal matters, etc.\n\n"
+            
+            "**Step 2: Document Selection Strategy**\n"
+            "- Review ALL available document descriptions for each search tool\n"
+            "- Identify which documents could potentially contain relevant information\n"
+            "- Consider document types (financial reports, presentations, agreements, etc.)\n"
+            "- For comprehensive answers, use MULTIPLE tools when documents might contain relevant info\n"
+            "- For financial queries, check both financial reports AND presentations\n"
+            "- For company overview queries, check investor presentations AND financial reports\n"
+            "- For legal queries, check agreements AND any related documents\n"
+            "- When in doubt, use MORE tools rather than fewer to ensure comprehensive coverage\n\n"
+            
+            "**Step 3: Context Gathering**\n"
+            "- Use ALL potentially relevant search tools to gather comprehensive context\n"
+            "- For each tool you use, explain why you chose it based on the query and document description\n"
+            "- Search with specific, targeted queries that match the user's information needs\n"
+            "- Use the document descriptions to formulate better search queries\n"
+            "- IMPORTANT: Use multiple tools if the query could be answered from different document types\n\n"
+            
+            "**Step 4: Answer Synthesis**\n"
+            "- Combine information from ALL relevant sources you searched\n"
+            "- Provide a comprehensive, well-structured answer (≤250 words)\n"
+            "- Include specific details and cite relevant information from the documents\n"
+            "- Ensure the answer directly addresses the user's original question\n"
+            "- If information is found in multiple documents, synthesize it coherently\n\n"
+            
+            "**Available Documents:**\n"
+            "- You have access to multiple PDF documents with different purposes and content\n"
+            "- Each document has a specific description explaining its content and purpose\n"
+            "- Use the search tools comprehensively based on these descriptions\n\n"
+            
+            "**CRITICAL GUIDELINES:**\n"
+            "- ALWAYS use MULTIPLE tools when the query could be answered from different document types\n"
+            "- Explain your reasoning for selecting each document\n"
+            "- If you're unsure about relevance, USE THE TOOL ANYWAY - better to have more information\n"
+            "- For general queries like 'summary' or 'overview', use ALL available tools\n"
+            "- Be comprehensive rather than selective in your tool usage\n"
+            "- Use the document descriptions to guide your search strategy\n"
+            "- For the query 'give me the summary', you MUST use ALL available tools to provide a comprehensive overview\n"
+            "- When the query is broad or general, default to using ALL tools for maximum coverage\n"
         ),
-        expected_output="Final answer to be shown to the user",
+        expected_output=(
+            "A comprehensive answer that includes:\n"
+            "1. Brief explanation of document selection reasoning\n"
+            "2. Detailed answer to the user's query\n"
+            "3. Specific information and citations from relevant documents\n"
+            "4. Clear, well-structured response that directly addresses the question"
+        ),
         agent=agent,
         async_execution=False,
-        input_variables={"question": query},  
+        input_variables={"question": query},
     )
+
+
+
+
 
 
 TABLE_FUNCTION_SCHEMA = {
@@ -925,104 +1013,3 @@ pdf_dicts = [
 # print(result)
 
 
-# def streamlit_callback(step_output):
-#     # This function will be called after each step of the agent's execution
-#     st.markdown("---")
-
-#     if isinstance(step_output, tuple) and len(step_output) == 2:
-#         action, observation = step_output
-#         if isinstance(action, dict) and "tool" in action and "tool_input" in action and "log" in action:
-#             st.markdown(f"# Action")
-#             st.markdown(f"**Tool:** {action['tool']}")
-#             st.markdown(f"**Tool Input** {action['tool_input']}")
-#             st.markdown(f"**Log:** {action['log']}")
-#             st.markdown(f"**Action:** {action['Action']}")
-#             st.markdown(
-#                 f"**Action Input:** ```json\n{action['tool_input']}\n```")
-#         elif isinstance(action, str):
-#             st.markdown(f"**Action:** {action}")
-#         else:
-#             st.markdown(f"**Action:** {str(action)}")
-
-#         st.markdown(f"**Observation**")
-#         if isinstance(observation, str):
-#             observation_lines = observation.split('\n')
-#             for line in observation_lines:
-#                 if line.startswith('Title: '):
-#                     st.markdown(f"**Title:** {line[7:]}")
-#                 elif line.startswith('Link: '):
-#                     st.markdown(f"**Link:** {line[6:]}")
-#                 elif line.startswith('Snippet: '):
-#                     st.markdown(f"**Snippet:** {line[9:]}")
-#                 elif line.startswith('-'):
-#                     st.markdown(line)
-#                 else:
-#                     st.markdown(line)
-#         else:
-#             st.markdown(str(observation))
-#     else:
-#         st.markdown(step_output)
-
-
-# class StreamToExpander:
-#     def __init__(self, expander):
-#         self.expander = expander
-#         self.buffer = []
-#         self.colors = ['red', 'green', 'blue', 'orange']  # Define a list of colors
-#         self.color_index = 0  # Initialize color index
-
-#     def write(self, data):
-#         # Filter out ANSI escape codes using a regular expression
-#         cleaned_data = re.sub(r'\x1B\[[0-9;]*[mK]', '', data)
-
-#         # Check if the data contains 'task' information
-#         task_match_object = re.search(r'\"task\"\s*:\s*\"(.*?)\"', cleaned_data, re.IGNORECASE)
-#         task_match_input = re.search(r'task\s*:\s*([^\n]*)', cleaned_data, re.IGNORECASE)
-#         task_value = None
-#         if task_match_object:
-#             task_value = task_match_object.group(1)
-#         elif task_match_input:
-#             task_value = task_match_input.group(1).strip()
-
-#         if task_value:
-#             st.toast(":robot_face: " + task_value)
-
-#         # Check if the text contains the specified phrase and apply color
-#         if "Entering new CrewAgentExecutor chain" in cleaned_data:
-#             # Apply different color and switch color index
-#             self.color_index = (self.color_index + 1) % len(self.colors)  # Increment color index and wrap around if necessary
-
-#             cleaned_data = cleaned_data.replace("Entering new CrewAgentExecutor chain", f":{self.colors[self.color_index]}[Entering new CrewAgentExecutor chain]")
-
-#         if "Document QA Expert" in cleaned_data:
-#             # Apply different color 
-#             cleaned_data = cleaned_data.replace("City Selection Expert", f":{self.colors[self.color_index]}[City Selection Expert]")
-    
-#         if "Finished chain." in cleaned_data:
-#             cleaned_data = cleaned_data.replace("Finished chain.", f":{self.colors[self.color_index]}[Finished chain.]")
-
-#         self.buffer.append(cleaned_data)
-#         if "\n" in data:
-#             self.expander.markdown(''.join(self.buffer), unsafe_allow_html=True)
-#             self.buffer = []
-
-
-# import crewai.utilities.events as events
-
-# # List all available events in your version
-# available_events = [attr for attr in dir(events) if 'Event' in attr]
-# print("Available events:", available_events)
-
-
-
-
-#  ['AgentExecutionCompletedEvent', 'AgentExecutionErrorEvent', 'AgentExecutionStartedEvent',
-#    'CrewAIEventsBus', 'CrewKickoffCompletedEvent', 'CrewKickoffFailedEvent', 'CrewKickoffStartedEvent', 
-#    'CrewTestCompletedEvent', 'CrewTestFailedEvent', 'CrewTestStartedEvent', 'CrewTrainCompletedEvent', 
-#    'CrewTrainFailedEvent', 'CrewTrainStartedEvent', 'EventListener', 'FlowCreatedEvent', 'FlowFinishedEvent',
-#      'FlowPlotEvent', 'FlowStartedEvent', 'LLMCallCompletedEvent', 'LLMCallFailedEvent', 'LLMCallStartedEvent', 
-#      'LLMGuardrailCompletedEvent', 'LLMGuardrailStartedEvent', 'LLMStreamChunkEvent', 'MethodExecutionFailedEvent',
-#        'MethodExecutionFinishedEvent', 'MethodExecutionStartedEvent', 'TaskCompletedEvent', 'TaskEvaluationEvent',
-#          'TaskFailedEvent', 'TaskStartedEvent', 'ToolExecutionErrorEvent', 'ToolSelectionErrorEvent', 
-#          'ToolUsageErrorEvent', 'ToolUsageEvent', 'ToolUsageFinishedEvent', 'ToolUsageStartedEvent', 
-#          'ToolValidateInputErrorEvent']
