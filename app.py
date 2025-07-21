@@ -10,8 +10,8 @@ from typing import List, Dict, Any, Tuple
 import requests
 import json
 
-from ai_analyst import read_pdf, create_chunks, store_embeddings_excel, generate_description,extract_tables_from_reports
-from processing_files import convert_pdf_to_text_new, get_chunked_documents_pipeline, get_reducto_chunks
+from ai_analyst import read_pdf, create_chunks, store_embeddings_excel, generate_description
+from processing_files import convert_pdf_to_text_new, get_chunked_documents_pipeline, get_reducto_chunks, extract_tables_from_reports
 from langchain.callbacks.base import BaseCallbackHandler
 from crewai import LLM, Crew, Process
 
@@ -281,8 +281,8 @@ def query_documents_with_messages(query: str, pdf_dicts: List[Dict[str, Any]], m
     handler.add_message("info", "⚡ Executing analysis…")
     result = crew.kickoff()
     handler.add_message("success", "🎉 Analysis completed successfully!")
-    # data = extract_tables_from_reports(str(result))
-    return str(result)
+    data = extract_tables_from_reports(str(result))
+    return data
 
 
 def query_documents_local(query: str, pdf_dicts: List[Dict[str, Any]]):

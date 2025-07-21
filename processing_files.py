@@ -17,6 +17,8 @@ import os
 import openai
 import streamlit as st
 import requests
+from typing import Optional, Dict, Any, List
+import json
 
 
 API_KEY = st.secrets["API_KEY"]
@@ -495,3 +497,164 @@ def get_reducto_chunks(file_name):
     
     
 
+
+
+def _validate_tables(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """    
+    Clean, merge, and rename tables:
+    - Align rows to headers.
+    - Concatenate rows of tables sharing identical headers.
+    - If multiple tables share the same headers, their names are joined with ' and '.
+    """
+    # Normalize legacy single-table format
+    if not isinstance(payload, dict) or "tables" not in payload or not isinstance(payload["tables"], list):
+        payload = payload.get("table") and {"tables": [payload["table"]]} or {"tables": []}
+
+    cleaned: List[Dict[str, Any]] = []
+    for idx, t in enumerate(payload.get("tables", [])):
+        if not isinstance(t, dict):
+            continue
+        name = t.get("table_name") or f"Table {idx+1}"
+        headers = t.get("headers") or []
+        rows = t.get("rows") or []
+        # Coerce rows to list of strings
+        fixed_rows: List[List[str]] = []
+        for r in rows:
+            if isinstance(r, dict):
+                fixed_rows.append([str(r.get(h, "")) for h in headers])
+            elif isinstance(r, list):
+                fixed_rows.append([str(c) for c in r])
+            else:
+                fixed_rows.append([str(r)])
+        # Align row lengths
+        h_len = len(headers)
+        if h_len:
+            aligned: List[List[str]] = []
+            for r in fixed_rows:
+                if len(r) < h_len:
+                    r += [""] * (h_len - len(r))
+                elif len(r) > h_len:
+                    r = r[:h_len]
+                aligned.append(r)
+            fixed_rows = aligned
+        cleaned.append({
+            "table_name": name,
+            "headers": headers,
+            "rows": fixed_rows
+        })
+
+    # Merge tables with identical headers and join names
+    merged: Dict[tuple, Dict[str, Any]] = {}
+    for t in cleaned:
+        key = tuple(t["headers"])
+        name = t["table_name"]
+        if key in merged:
+            merged_entry = merged[key]
+            merged_entry["rows"].extend(t["rows"])
+            if name not in merged_entry["names"]:
+                merged_entry["names"].append(name)
+        else:
+            merged[key] = {
+                "headers": t["headers"],
+                "rows": list(t["rows"]),
+                "names": [name]
+            }
+
+    # Build final tables list with combined names
+    result_tables: List[Dict[str, Any]] = []
+    for entry in merged.values():
+        if len(entry["names"]) > 1:
+            table_name = " and ".join(entry["names"])
+        else:
+            table_name = entry["names"][0]
+        result_tables.append({
+            "table_name": table_name,
+            "headers": entry["headers"],
+            "rows": entry["rows"]
+        })
+
+    return {"tables": result_tables}
+
+
+def extract_tables_from_reports(data_str: str) -> Dict[str, Any]:
+    """
+    Extract and return one or more tables from CrewAI agent Response content.
+    Tables with identical headers are concatenated, And justified name of the table is assigned based on the content.
+
+    If the function call or raw JSON parse fails, return the original input string under the key 'tables'.
+    """
+    query = (
+        "Analyze the Provided content properly and understand the content and meaning of the content and tabular data present in that content."
+        "Extract all tables from the text."
+        "Extract distinct tables from the text. "
+        "Return valid JSON via function call 'extract_tables' with key 'tables': a list of objects with 'table_name', 'headers', 'rows'. "
+        "If none found, return {\"tables\": []}."
+    )
+    system_prompt = (
+        "You are the specialized AI assistant which can generate the tables from the given content."
+        "You extract structured tables only via the given function schema. No commentary."
+    )
+
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": f"Query: {query} \n\n Raw Data: {data_str}"}
+    ]
+    functions = [{
+        "name": "extract_tables",
+        "description": "Return all tables found in the raw string.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "tables": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "table_name": {"type": "string"},
+                            "headers": {"type": "array", "items": {"type": "string"}},
+                            "rows": {"type": "array", "items": {"type": "array", "items": {"type": "string"}}}
+                        },
+                        "required": ["table_name", "headers", "rows"]
+                    }
+                }
+            },
+            "required": ["tables"]
+        }
+    }]
+
+    try:
+        resp = openai.chat.completions.create(
+            model="gpt-4o",
+            messages=messages,
+            functions=functions,
+            function_call={"name": "extract_tables"},
+            temperature=0
+        )
+        fc = resp.choices[0].message.function_call
+    except Exception:
+        fc = None
+
+    parsed: Any = None
+    # Attempt to parse model output
+    if fc:
+        try:
+            parsed = json.loads(fc.arguments)
+        except Exception:
+            parsed = None
+    # If not parsed, try parsing raw input as JSON
+    if parsed is None:
+        try:
+            parsed = json.loads(data_str)
+        except Exception:
+            parsed = None
+
+    # If parsed JSON contains a tables list, validate and merge
+    if (
+        isinstance(parsed, dict)
+        and "tables" in parsed
+        and isinstance(parsed["tables"], list)
+    ):
+        return _validate_tables(parsed)
+    else:
+        # Fallback: return raw string
+        return {"tables": data_str}
