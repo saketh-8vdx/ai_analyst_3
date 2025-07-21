@@ -134,7 +134,7 @@ def build_tools(pdf_dicts: List[Dict[str, Any]]) -> List[BaseTool]:
 #     )
 
 
-def build_agent(all_tools: List[BaseTool], query: str) -> Agent:
+def build_agent(all_tools: List[BaseTool], query: str,llm) -> Agent:
     return Agent(
         role="Comprehensive Document Analysis Expert",
         goal=(
