@@ -462,8 +462,10 @@ def answer_query(query: str, pdf_dicts: List[Dict[str, Any]], verbose: bool = Tr
     crew = Crew(
         agents=[qa_agent],
         tasks=[task],
-        process=Process.sequential,
-        verbose=verbose
+        process=Process.hierarchical,
+        verbose=verbose, # NEW
+    planning=True,                  # let CrewAI auto-chunk the plan
+    manager_llm="gpt-4o"
     )
     return crew.kickoff()
 

@@ -276,7 +276,8 @@ def query_documents_with_messages(query: str, pdf_dicts: List[Dict[str, Any]], m
 
     agent = build_agent(tools, query, llm)
     task = build_task(agent, query)
-    crew = Crew(agents=[agent], tasks=[task], process=Process.sequential, verbose=True)
+    crew = Crew(agents=[agent], tasks=[task], process=Process.hierarchical, verbose=True,  planning=True,                  # let CrewAI auto-chunk the plan
+    manager_llm="gpt-4o")
 
     handler.add_message("info", "⚡ Executing analysis…")
     result = crew.kickoff()
